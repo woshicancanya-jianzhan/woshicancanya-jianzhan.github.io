@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>爱心迷宫冒险 - 灿灿宝贝 & 大广</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        coral: '#ff6b6b',
+        blush: '#ffb4b4',
+        rose: { dark: '#1a0a10', deeper: '#2d1520' }
+      },
+      fontFamily: {
+        display: ['Ma Shan Zheng', 'cursive'],
+        body: ['Noto Sans SC', 'sans-serif'],
+      }
+    }
+  }
+}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: linear-gradient(135deg, #1a0a10 0%, #2d1520 50%, #1a0a10 100%);
+  overflow: hidden;
+}
+.font-display { font-family: 'Ma Shan Zheng', cursive; }
+
+#gameCanvas {
+  border-radius: 16px;
+  box-shadow: 0 0 60px rgba(255, 107, 107, 0.3), inset 0 0 30px rgba(0,0,0,0.5);
+}
+
+.glass-panel {
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.15) 0%, rgba(255, 107, 107, 0.08) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 182, 193, 0.25);
+  border-radius: 20px;
+}
+
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
+@keyframes bounceIn { 0% { transform: scale(0.3); opacity: 0; } 50% { transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-pulse-slow { animation: pulse 2s ease-in-out infinite; }
+.animate-bounce-in { animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+.animate-shake { animation: shake 0.5s ease-in-out; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+  color: white;
+  padding: 12px 32px;
+  border-radius: 50px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+  border: none;
+  cursor: pointer;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 30px rgba(255, 107, 107, 0.6); }
+
+.challenge-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  max-width: 95vw;
+  width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* 问答选项样式 */
+.quiz-option {
+  position: relative;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 182, 193, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.quiz-option:hover {
+  background: rgba(255, 182, 193, 0.15);
+  border-color: rgba(255, 107, 107, 0.6);
+}
+
+/* 选中状态 - 盲选模式下只显示自己选了，不显示具体内容给对方 */
+.selected-p1 {
+  border-color: #f472b6;
+  background: rgba(244, 114, 182, 0.2);
+  box-shadow: 0 0 15px rgba(244, 114, 182, 0.3);
+}
+.selected-p2 {
+  border-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.2);
+  box-shadow: 0 0 15px rgba(96, 165, 250, 0.3);
+}
+
+/* 揭晓状态 */
+.reveal-match {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.3);
+  transform: scale(1.05);
+}
+.reveal-mismatch {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.3);
+  animation: shake 0.5s ease-in-out;
+}
+
+.player-label {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  background: rgba(0,0,0,0.6);
+}
+.label-p1 { color: #f472b6; border: 1px solid #f472b6; }
+.label-p2 { color: #60a5fa; border: 1px solid #60a5fa; }
+
+.heart-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  animation: floatUp 2s ease-out forwards;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-150px) scale(0.3); }
+}
+
+.certificate {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe4e6 100%);
+  border: 6px double #ff6b6b;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.certificate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 35 C5 25 0 18 0 10 C0 3 5 0 10 0 C15 0 18 4 20 7 C22 4 25 0 30 0 C35 0 40 3 40 10 C40 18 35 25 20 35 Z' fill='rgba(255,107,107,0.06)'/%3E%3C/svg%3E");
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body class="min-h-screen text-rose-50">
+
+<div id="particles"></div>
+
+<!-- 开始界面 -->
+<div id="startScreen" class="fixed inset-0 flex items-center justify-center p-4 z-50">
+  <div class="glass-panel p-6 md:p-10 max-w-xl w-full text-center animate-float">
+    <div class="relative mb-6">
+      <div class="absolute -top-6 -left-6 text-3xl text-coral opacity-50"><i class="fas fa-heart"></i></div>
+      <h1 class="font-display text-4xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-coral via-rose-300 to-blush mb-3">爱心迷宫冒险</h1>
+      <p class="text-rose-200 text-lg">灿灿宝贝 & 大广</p>
+    </div>
+    
+    <div class="bg-rose-900/30 rounded-xl p-4 mb-6 text-left text-sm leading-relaxed text-rose-100/80">
+      <p>这是一个考验<span class="text-coral">真爱默契</span>的迷宫。所有的门都需要两人盲选作答。</p>
+      <p class="mt-2 text-xs text-rose-300/60">规则：两人各自选择答案，<span class="text-white font-bold">选择过程中互不可见</span>，都选完后揭晓。选的一样才能过关！</p>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div class="bg-pink-500/20 rounded-xl p-3 border border-pink-400/30">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center"><i class="fas fa-user text-xs"></i></div>
+          <span class="text-pink-200 text-sm">灿灿宝贝</span>
+        </div>
+        <p class="text-xs text-pink-300/60">WASD移动 / 点击左侧选项</p>
+      </div>
+      <div class="bg-blue-500/20 rounded-xl p-3 border border-blue-400/30">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center"><i class="fas fa-user text-xs"></i></div>
+          <span class="text-blue-200 text-sm">大广</span>
+        </div>
+        <p class="text-xs text-blue-300/60">方向键移动 / 点击右侧选项</p>
+      </div>
+    </div>
+    
+    <button onclick="startGame()" class="btn-primary text-lg"><i class="fas fa-heart mr-2"></i>开始冒险</button>
+  </div>
+</div>
+
+<!-- 游戏界面 -->
+<div id="gameScreen" class="fixed inset-0 flex flex-col items-center justify-center p-2 md:p-4 hidden">
+  <div class="glass-panel px-4 py-2 mb-2 flex flex-wrap items-center justify-center gap-4 text-sm">
+    <div class="flex items-center gap-2"><i class="fas fa-map text-coral"></i><span class="text-rose-200">默契度</span><span id="roomCount" class="text-white font-bold">0</span><span class="text-rose-300/50">/ 6</span></div>
+    <div class="h-4 w-px bg-rose-500/30 hidden md:block"></div>
+    <div class="flex items-center gap-2"><span class="text-rose-200">生命</span><div id="livesDisplay" class="flex gap-1"></div></div>
+    <div class="h-4 w-px bg-rose-500/30 hidden md:block"></div>
+    <div class="flex items-center gap-2"><i class="fas fa-hourglass-half text-coral"></i><span id="timerDisplay" class="text-white font-mono">--</span></div>
+  </div>
+  <canvas id="gameCanvas"></canvas>
+  <div class="glass-panel px-4 py-2 mt-2 text-center text-xs text-rose-200/60">
+    <span class="text-pink-300">灿灿: WASD</span><span class="mx-2">|</span><span class="text-blue-300">大广: 方向键</span>
+  </div>
+</div>
+
+<!-- 挑战面板 -->
+<div id="challengePanel" class="challenge-panel hidden">
+  <div class="glass-panel p-6 md:p-8 w-full animate-bounce-in">
+    <div id="challengeContent"></div>
+  </div>
+</div>
+
+<!-- 结局界面 -->
+<div id="endScreen" class="fixed inset-0 flex items-center justify-center p-4 z-50 hidden">
+  <div class="certificate p-6 md:p-10 max-w-lg w-full animate-bounce-in">
+    <div class="relative z-10 text-center">
+      <i class="fas fa-award text-5xl text-coral mb-4"></i>
+      <h2 class="font-display text-3xl md:text-4xl text-rose-700 mb-2">真爱证书</h2>
+      <p class="text-rose-400 text-sm mb-6">Certificate of True Love</p>
+      <p class="text-rose-600 mb-2">兹证明</p>
+      <p class="font-display text-2xl md:text-3xl text-rose-700 mb-4">灿灿宝贝 <i class="fas fa-heart text-coral"></i> 大广</p>
+      <p class="text-rose-600 mb-6">已通过所有默契考验，是命中注定的一对</p>
+      <div class="bg-rose-100/60 rounded-xl p-4 mb-6">
+        <p class="font-display text-lg text-rose-700 leading-relaxed">春风十里，不及与你相遇<br>晴空万里，不及心中有你<br>往后余生，皆是你</p>
+      </div>
+      <div class="flex flex-wrap justify-center gap-4 text-xs text-rose-500 mb-6">
+        <span><i class="fas fa-birthday-cake text-coral mr-1"></i>2022.10.05</span>
+        <span><i class="fas fa-film text-coral mr-1"></i>2023.06.15《温柔壳》</span>
+      </div>
+      <p id="endDate" class="text-rose-400 text-xs mb-6"></p>
+      <button onclick="restartGame()" class="btn-primary"><i class="fas fa-redo mr-2"></i>再爱一次</button>
+    </div>
+  </div>
+</div>
+
+<!-- 失败界面 -->
+<div id="failScreen" class="fixed inset-0 flex items-center justify-center p-4 z-50 hidden">
+  <div class="glass-panel p-8 text-center animate-bounce-in">
+    <i class="fas fa-heart-broken text-5xl text-rose-400 mb-4"></i>
+    <h2 class="font-display text-2xl text-rose-200 mb-2">默契不足</h2>
+    <p class="text-rose-300/60 mb-6">别灰心，真爱需要不断磨合！</p>
+    <button onclick="restartGame()" class="btn-primary"><i class="fas fa-redo mr-2"></i>重新开始</button>
+  </div>
+</div>
+
+<script>
+// ============ 游戏配置 ============
+const CONFIG = {
+  TILE_SIZE: 36,
+  PLAYER_SIZE: 14,
+  PLAYER_SPEED: 3.5,
+  ROOM_COUNT: 6,
+  MAX_LIVES: 3,
+  CHALLENGE_TIME: 30,
+  VISION_RADIUS: 5
+};
+
+// ============ 题库 ============
+const QUESTIONS = [
+  { q: "灿灿宝贝最喜欢的季节是？", opts: ["春（百花盛开）", "夏（吃西瓜）", "秋（落叶浪漫）", "冬（看雪）"] },
+  { q: "大广最让灿灿感动的瞬间是？", opts: ["第一次牵手", "生日惊喜", "日常照顾", "每次道歉"] },
+  { q: "两人第一次看电影《温柔壳》时，谁哭得更凶？", opts: ["大广", "灿灿宝贝", "都哭了", "都没哭"] },
+  { q: "灿灿宝贝生气时，大广最好的哄人方式是？", opts: ["买好吃的", "抱抱亲亲", "讲笑话", "转账红包"] },
+  { q: "大广最大的优点是？", opts: ["温柔体贴", "帅气逼人", "幽默风趣", "专一深情"] },
+  { q: "灿灿宝贝最想去的旅行地是？", opts: ["海边（看海）", "古镇（拍照）", "游乐园（玩耍）", "家里（躺平）"] },
+  { q: "两人的定情信物是什么？", opts: ["情侣戒指", "纪念照片", "特别礼物", "彼此的心"] },
+  { q: "大广最喜欢灿灿宝贝穿什么风格的衣服？", opts: ["可爱风", "御姐风", "休闲风", "都好看"] },
+  { q: "灿灿宝贝最怕什么？", opts: ["虫子", "黑", "鬼故事", "大广生气"] },
+  { q: "两人吵架后，通常谁先低头？", opts: ["大广", "灿灿宝贝", "一起", "看谁占理"] },
+  { q: "大广做的哪道菜最好吃？", opts: ["红烧肉", "番茄炒蛋", "方便面", "都不会做"] },
+  { q: "灿灿宝贝的梦想是什么？", opts: ["环游世界", "吃遍美食", "和大广永远在一起", "变有钱"] },
+  { q: "两人最想养的宠物是？", opts: ["可爱的小狗", "高冷的猫", "小兔子", "不想养"] },
+  { q: "大广送过灿灿最喜欢的礼物是？", opts: ["鲜花", "口红", "包包", "陪伴"] },
+  { q: "灿灿宝贝觉得大广什么时候最帅？", opts: ["认真工作时", "做饭时", "睡觉时", "任何时候"] },
+  { q: "两人最喜欢的约会活动是？", opts: ["看电影", "逛街", "吃大餐", "宅家追剧"] },
+  { q: "大广最喜欢灿灿宝贝哪个部位？", opts: ["眼睛", "笑容", "手", "全部"] },
+  { q: "灿灿宝贝最喜欢大广叫她什么？", opts: ["宝贝", "老婆", "亲爱的", "灿灿"] },
+  { q: "两人未来的婚礼风格是？", opts: ["浪漫西式", "传统中式", "海岛婚礼", "简单领证"] },
+  { q: "大广和灿灿谁更爱赖床？", opts: ["大广", "灿灿宝贝", "一样", "都不赖床"] }
+];
+
+// ============ 游戏状态 ============
+const state = {
+  gameStarted: false,
+  lives: 3,
+  roomsCompleted: 0,
+  currentChallenge: null,
+  timer: null,
+  timeLeft: 0,
+  players: {
+    p1: { x: 0, y: 0, color: '#f472b6', name: '灿灿宝贝' },
+    p2: { x: 0, y: 0, color: '#60a5fa', name: '大广' }
+  },
+  keys: {},
+  maze: [],
+  rooms: [],
+  goal: { x: 0, y: 0 },
+  roomStatus: {},
+  usedQuestions: [],
+  quizState: { p1: null, p2: null }
+};
+
+// ============ 迷宫生成 ============
+const MAZE_WIDTH = 25;
+const MAZE_HEIGHT = 19;
+
+function generateMaze() {
+  state.maze = [];
+  for (let y = 0; y < MAZE_HEIGHT; y++) {
+    state.maze[y] = [];
+    for (let x = 0; x < MAZE_WIDTH; x++) state.maze[y][x] = 1;
+  }
+  
+  function carve(x, y) {
+    state.maze[y][x] = 0;
+    const directions = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => Math.random() - 0.5);
+    for (const [dx, dy] of directions) {
+      const nx = x + dx, ny = y + dy;
+      if (nx > 0 && nx < MAZE_WIDTH - 1 && ny > 0 && ny < MAZE_HEIGHT - 1 && state.maze[ny][nx] === 1) {
+        state.maze[y + dy/2][x + dx/2] = 0;
+        carve(nx, ny);
+      }
+    }
+  }
+  carve(1, 1);
+  
+  for (let i = 0; i < 25; i++) {
+    const x = Math.floor(Math.random() * (MAZE_WIDTH - 2)) + 1;
+    const y = Math.floor(Math.random() * (MAZE_HEIGHT - 2)) + 1;
+    if (state.maze[y][x] === 1) {
+       let neighbors = 0;
+       if (y > 0 && state.maze[y-1][x] === 0) neighbors++;
+       if (y < MAZE_HEIGHT-1 && state.maze[y+1][x] === 0) neighbors++;
+       if (x > 0 && state.maze[y][x-1] === 0) neighbors++;
+       if (x < MAZE_WIDTH-1 && state.maze[y][x+1] === 0) neighbors++;
+       if (neighbors >= 1) state.maze[y][x] = 0;
+    }
+  }
+  
+  placeRooms();
+  
+  for(let y=1; y<=2; y++) for(let x=1; x<=2; x++) state.maze[y][x] = 0;
+
+  state.players.p1.x = 1.5 * CONFIG.TILE_SIZE;
+  state.players.p1.y = 1.5 * CONFIG.TILE_SIZE;
+  state.players.p2.x = 2.5 * CONFIG.TILE_SIZE;
+  state.players.p2.y = 1.5 * CONFIG.TILE_SIZE;
+  
+  state.goal.x = Math.floor(MAZE_WIDTH / 2);
+  state.goal.y = Math.floor(MAZE_HEIGHT / 2);
+  for(let dy=-1; dy<=1; dy++) for(let dx=-1; dx<=1; dx++) if(state.maze[state.goal.y+dy]) state.maze[state.goal.y+dy][state.goal.x+dx] = 0;
+}
+
+function placeRooms() {
+  state.rooms = [];
+  const positions = [{x: 5, y: 3}, {x: 19, y: 3}, {x: 3, y: 9}, {x: 21, y: 9}, {x: 5, y: 15}, {x: 19, y: 15}];
+  
+  positions.forEach((pos, index) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (pos.y+dy > 0 && pos.y+dy < MAZE_HEIGHT-1 && pos.x+dx > 0 && pos.x+dx < MAZE_WIDTH-1) state.maze[pos.y+dy][pos.x+dx] = 0;
+    state.maze[pos.y][pos.x] = 2;
+    state.rooms.push({ x: pos.x, y: pos.y, completed: false, id: index });
+    state.roomStatus[index] = 'idle';
+  });
+}
+
+// ============ 渲染 ============
+let canvas, ctx;
+
+function initCanvas() {
+  canvas = document.getElementById('gameCanvas');
+  ctx = canvas.getContext('2d');
+  canvas.width = MAZE_WIDTH * CONFIG.TILE_SIZE;
+  canvas.height = MAZE_HEIGHT * CONFIG.TILE_SIZE;
+}
+
+function render() {
+  if (!ctx) return;
+  ctx.fillStyle = '#1a0a10';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  for (let y = 0; y < MAZE_HEIGHT; y++) {
+    for (let x = 0; x < MAZE_WIDTH; x++) {
+      const tile = state.maze[y][x];
+      const px = x * CONFIG.TILE_SIZE;
+      const py = y * CONFIG.TILE_SIZE;
+      
+      let distP1 = Math.hypot(state.players.p1.x/CONFIG.TILE_SIZE - x, state.players.p1.y/CONFIG.TILE_SIZE - y);
+      let distP2 = Math.hypot(state.players.p2.x/CONFIG.TILE_SIZE - x, state.players.p2.y/CONFIG.TILE_SIZE - y);
+      let minDist = Math.min(distP1, distP2);
+      let alpha = Math.max(0, 1 - minDist / CONFIG.VISION_RADIUS);
+      if (alpha <= 0) continue;
+      ctx.globalAlpha = Math.min(1, alpha + 0.2);
+
+      if (tile === 1) {
+        ctx.fillStyle = '#3d1a2a';
+        ctx.fillRect(px, py, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+        ctx.strokeStyle = 'rgba(255, 107, 107, 0.1)';
+        ctx.strokeRect(px, py, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+      } else if (tile === 0) {
+        ctx.fillStyle = '#150510';
+        ctx.fillRect(px, py, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+      } else if (tile === 2) {
+        ctx.fillStyle = '#150510';
+        ctx.fillRect(px, py, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+        const room = state.rooms.find(r => r.x === x && r.y === y);
+        if (room) {
+          const status = state.roomStatus[room.id];
+          if (status === 'done') {
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+            ctx.fillRect(px, py, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+            ctx.fillStyle = '#22c55e';
+            ctx.font = '16px FontAwesome';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('\u2713', px + CONFIG.TILE_SIZE/2, py + CONFIG.TILE_SIZE/2);
+          } else {
+            ctx.fillStyle = 'rgba(255, 107, 107, 0.2)';
+            ctx.fillRect(px, py, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = '18px FontAwesome';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('\u2764', px + CONFIG.TILE_SIZE/2, py + CONFIG.TILE_SIZE/2);
+            if (status === 'waiting') {
+                ctx.font = '8px sans-serif';
+                ctx.fillStyle = '#fff';
+                ctx.fillText('等待中', px + CONFIG.TILE_SIZE/2, py + CONFIG.TILE_SIZE - 6);
+            }
+          }
+        }
+      }
+      ctx.globalAlpha = 1.0;
+    }
+  }
+  
+  if (state.roomsCompleted >= CONFIG.ROOM_COUNT) {
+    const gx = state.goal.x * CONFIG.TILE_SIZE;
+    const gy = state.goal.y * CONFIG.TILE_SIZE;
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
+    ctx.fillRect(gx, gy, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '20px FontAwesome';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u2764', gx + CONFIG.TILE_SIZE/2, gy + CONFIG.TILE_SIZE/2);
+  }
+  
+  drawPlayer(state.players.p1, '灿');
+  drawPlayer(state.players.p2, '广');
+}
+
+function drawPlayer(player, label) {
+  const time = Date.now() / 500;
+  const pulse = 1 + Math.sin(time) * 0.1;
+  const gradient = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, CONFIG.PLAYER_SIZE * 2.5);
+  gradient.addColorStop(0, player.color + '80');
+  gradient.addColorStop(1, player.color + '00');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, CONFIG.PLAYER_SIZE * 2.5 * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = player.color;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, CONFIG.PLAYER_SIZE * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, CONFIG.PLAYER_SIZE * pulse, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, player.x, player.y);
+}
+
+// ============ 游戏循环 ============
+function gameLoop() {
+  if (!state.gameStarted) return;
+  updatePlayers();
+  render();
+  checkCollisions();
+  requestAnimationFrame(gameLoop);
+}
+
+function updatePlayers() {
+  let dx1 = 0, dy1 = 0;
+  if (state.keys['KeyW']) dy1 = -CONFIG.PLAYER_SPEED;
+  if (state.keys['KeyS']) dy1 = CONFIG.PLAYER_SPEED;
+  if (state.keys['KeyA']) dx1 = -CONFIG.PLAYER_SPEED;
+  if (state.keys['KeyD']) dx1 = CONFIG.PLAYER_SPEED;
+  movePlayer('p1', dx1, dy1);
+  
+  let dx2 = 0, dy2 = 0;
+  if (state.keys['ArrowUp']) dy2 = -CONFIG.PLAYER_SPEED;
+  if (state.keys['ArrowDown']) dy2 = CONFIG.PLAYER_SPEED;
+  if (state.keys['ArrowLeft']) dx2 = -CONFIG.PLAYER_SPEED;
+  if (state.keys['ArrowRight']) dx2 = CONFIG.PLAYER_SPEED;
+  movePlayer('p2', dx2, dy2);
+}
+
+function movePlayer(id, dx, dy) {
+  const p = state.players[id];
+  if (!dx && !dy) return;
+  let newX = p.x + dx;
+  let newY = p.y + dy;
+  if (!checkWallCollision(newX, newY)) { p.x = newX; p.y = newY; }
+  else if (!checkWallCollision(newX, p.y)) { p.x = newX; }
+  else if (!checkWallCollision(p.x, newY)) { p.y = newY; }
+}
+
+function checkWallCollision(x, y) {
+  const margin = CONFIG.PLAYER_SIZE * 0.7;
+  const corners = [{x: x - margin, y: y - margin}, {x: x + margin, y: y - margin}, {x: x - margin, y: y + margin}, {x: x + margin, y: y + margin}];
+  for (const c of corners) {
+    const tx = Math.floor(c.x / CONFIG.TILE_SIZE);
+    const ty = Math.floor(c.y / CONFIG.TILE_SIZE);
+    if (tx < 0 || tx >= MAZE_WIDTH || ty < 0 || ty >= MAZE_HEIGHT || state.maze[ty][tx] === 1) return true;
+  }
+  return false;
+}
+
+function checkCollisions() {
+  for (const room of state.rooms) {
+    if (room.completed) continue;
+    const rcX = (room.x + 0.5) * CONFIG.TILE_SIZE;
+    const rcY = (room.y + 0.5) * CONFIG.TILE_SIZE;
+    const d1 = Math.hypot(state.players.p1.x - rcX, state.players.p1.y - rcY);
+    const d2 = Math.hypot(state.players.p2.x - rcX, state.players.p2.y - rcY);
+    const triggerDist = CONFIG.TILE_SIZE * 1.5;
+    
+    if (d1 < triggerDist && d2 < triggerDist) {
+      if (state.roomStatus[room.id] !== 'active') {
+        state.roomStatus[room.id] = 'active';
+        startChallenge(room);
+      }
+    } else if (d1 < triggerDist || d2 < triggerDist) {
+      state.roomStatus[room.id] = 'waiting';
+    } else {
+      if (state.roomStatus[room.id] === 'waiting') state.roomStatus[room.id] = 'idle';
+    }
+  }
+  
+  if (state.roomsCompleted >= CONFIG.ROOM_COUNT) {
+    const gx = (state.goal.x + 0.5) * CONFIG.TILE_SIZE;
+    const gy = (state.goal.y + 0.5) * CONFIG.TILE_SIZE;
+    const d1 = Math.hypot(state.players.p1.x - gx, state.players.p1.y - gy);
+    const d2 = Math.hypot(state.players.p2.x - gx, state.players.p2.y - gy);
+    if (d1 < CONFIG.TILE_SIZE * 1.5 && d2 < CONFIG.TILE_SIZE * 1.5) showVictory();
+  }
+}
+
+// ============ 挑战系统 (盲选模式) ============
+function startChallenge(room) {
+  state.currentChallenge = room;
+  pauseGame();
+  document.getElementById('challengePanel').classList.remove('hidden');
+  loadQuiz();
+}
+
+function loadQuiz() {
+  let availableQ = QUESTIONS.filter((_, i) => !state.usedQuestions.includes(i));
+  if (availableQ.length === 0) { state.usedQuestions = []; availableQ = QUESTIONS; }
+  
+  const qIndex = QUESTIONS.indexOf(availableQ[Math.floor(Math.random() * availableQ.length)]);
+  state.usedQuestions.push(qIndex);
+  const q = QUESTIONS[qIndex];
+
+  // 重置状态：p1和p2的选择均为空
+  state.quizState = { p1: null, p2: null };
+  
+  const content = document.getElementById('challengeContent');
+  // 布局：上方面板显示问题，下方分为左右两区，分别给P1和P2操作
+  content.innerHTML = `
+    <div class="text-center mb-6">
+      <h3 class="font-display text-xl md:text-2xl text-white mb-2">${q.q}</h3>
+      <p class="text-rose-300/60 text-sm">请各自选择答案，选择完毕后揭晓</p>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4 relative">
+      <!-- 左侧：灿灿宝贝 -->
+      <div class="relative">
+        <div class="text-center mb-2 text-pink-300 text-sm font-bold">灿灿宝贝 (按 1-2-3-4)</div>
+        <div class="space-y-2" id="opts-p1">
+          ${q.opts.map((opt, i) => `
+            <div class="quiz-option" data-player="p1" data-index="${i}" onclick="handleSelect('p1', ${i})">
+              <span class="text-white text-sm">${i+1}. ${opt}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      <!-- 右侧：大广 -->
+      <div class="relative">
+        <div class="text-center mb-2 text-blue-300 text-sm font-bold">大广 (按 7-8-9-0)</div>
+        <div class="space-y-2" id="opts-p2">
+          ${q.opts.map((opt, i) => `
+            <div class="quiz-option" data-player="p2" data-index="${i}" onclick="handleSelect('p2', ${i})">
+              <span class="text-white text-sm">${i+1}. ${opt}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+    
+    <div id="quizResult" class="mt-6 text-center hidden"></div>
+  `;
+  
+  state.currentQuestion = q;
+  startTimer();
+}
+
+// 处理选择（点击或键盘触发）
+function handleSelect(player, index) {
+  // 如果已经揭晓了，就不让改了
+  if (state.quizState.revealed) return;
+  
+  state.quizState[player] = index;
+  
+  // 更新UI：只高亮自己区域的选中项，不显示具体选了什么给对方看
+  const container = document.getElementById(`opts-${player}`);
+  container.querySelectorAll('.quiz-option').forEach((el, i) => {
+    el.classList.remove('selected-p1', 'selected-p2');
+    if (i === index) {
+      el.classList.add(`selected-${player}`);
+    }
+  });
+  
+  // 检查是否两人都选了
+  if (state.quizState.p1 !== null && state.quizState.p2 !== null) {
+    revealAnswers();
+  }
+}
+
+// 揭晓答案
+function revealAnswers() {
+  state.quizState.revealed = true;
+  clearInterval(state.timer);
+  
+  const p1Choice = state.quizState.p1;
+  const p2Choice = state.quizState.p2;
+  const isMatch = p1Choice === p2Choice;
+  
+  // 视觉反馈：显示两人具体选了什么
+  // P1区域
+  document.querySelectorAll('#opts-p1 .quiz-option').forEach((el, i) => {
+    el.classList.remove('selected-p1'); // 移除盲选高亮
+    if (i === p1Choice) {
+      el.classList.add(isMatch ? 'reveal-match' : 'reveal-mismatch');
+      el.innerHTML += `<span class="player-label label-p1">灿灿选了</span>`;
+    }
+  });
+  
+  // P2区域
+  document.querySelectorAll('#opts-p2 .quiz-option').forEach((el, i) => {
+    el.classList.remove('selected-p2'); // 移除盲选高亮
+    if (i === p2Choice) {
+      el.classList.add(isMatch ? 'reveal-match' : 'reveal-mismatch');
+      el.innerHTML += `<span class="player-label label-p2">大广选了</span>`;
+    }
+  });
+  
+  const resultDiv = document.getElementById('quizResult');
+  resultDiv.classList.remove('hidden');
+  
+  setTimeout(() => {
+    if (isMatch) {
+      resultDiv.innerHTML = `<p class="text-green-400 text-xl font-bold animate-bounce-in"><i class="fas fa-check-circle mr-2"></i>心有灵犀！</p>`;
+      completeChallenge(true);
+    } else {
+      resultDiv.innerHTML = `<p class="text-red-400 text-xl font-bold animate-shake"><i class="fas fa-times-circle mr-2"></i>默契不足，重来！</p>`;
+      // 扣生命或重试
+      state.lives--;
+      updateLives();
+      
+      if (state.lives <= 0) {
+        setTimeout(() => {
+          document.getElementById('challengePanel').classList.add('hidden');
+          showFail();
+        }, 1500);
+      } else {
+        // 重置当前问题，重新选
+        setTimeout(() => {
+          state.quizState = { p1: null, p2: null };
+          // 清除样式
+          document.querySelectorAll('.quiz-option').forEach(el => {
+            el.classList.remove('reveal-match', 'reveal-mismatch');
+            el.querySelector('.player-label')?.remove();
+          });
+          resultDiv.classList.add('hidden');
+          startTimer(); // 重新计时
+        }, 2000);
+      }
+    }
+  }, 500);
+}
+
+// ============ 通用逻辑 ============
+function startTimer() {
+  state.timeLeft = CONFIG.CHALLENGE_TIME;
+  updateTimer();
+  clearInterval(state.timer);
+  state.timer = setInterval(() => {
+    state.timeLeft--;
+    updateTimer();
+    if (state.timeLeft <= 0) {
+      // 超时视为失败
+      state.quizState.revealed = true; // 锁定操作
+      clearInterval(state.timer);
+      const resultDiv = document.getElementById('quizResult');
+      resultDiv.classList.remove('hidden');
+      resultDiv.innerHTML = `<p class="text-red-400 text-xl font-bold"><i class="fas fa-hourglass-end mr-2"></i>时间到！</p>`;
+      
+      state.lives--;
+      updateLives();
+      if (state.lives <= 0) {
+        setTimeout(() => { document.getElementById('challengePanel').classList.add('hidden'); showFail(); }, 1500);
+      } else {
+        setTimeout(() => {
+          state.quizState = { p1: null, p2: null };
+          document.querySelectorAll('.quiz-option').forEach(el => el.classList.remove('selected-p1', 'selected-p2', 'reveal-match', 'reveal-mismatch'));
+          resultDiv.classList.add('hidden');
+          startTimer();
+        }, 2000);
+      }
+    }
+  }, 1000);
+}
+
+function updateTimer() {
+  const d = document.getElementById('timerDisplay');
+  if(d) {
+    d.textContent = state.timeLeft + 's';
+    d.className = state.timeLeft <= 10 ? 'text-red-400 font-mono' : 'text-white font-mono';
+  }
+}
+
+function completeChallenge(success) {
+  if (success) {
+    state.currentChallenge.completed = true;
+    state.roomsCompleted++;
+    document.getElementById('roomCount').textContent = state.roomsCompleted;
+    state.roomStatus[state.currentChallenge.id] = 'done';
+    if (state.lives < CONFIG.MAX_LIVES) { state.lives++; updateLives(); }
+    createParticle();
+  }
+  
+  setTimeout(() => { 
+    document.getElementById('challengePanel').classList.add('hidden'); 
+    resumeGame(); 
+  }, 1500);
+}
+
+function updateLives() {
+  const d = document.getElementById('livesDisplay');
+  d.innerHTML = '';
+  for (let i = 0; i < CONFIG.MAX_LIVES; i++) {
+    const h = document.createElement('i');
+    h.className = 'fas fa-heart text-sm ' + (i < state.lives ? 'text-coral' : 'text-rose-900/50');
+    d.appendChild(h);
+  }
+}
+
+function startGame() {
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('gameScreen').classList.remove('hidden');
+  state.keys = {};
+  state.gameStarted = true;
+  state.lives = CONFIG.MAX_LIVES;
+  state.roomsCompleted = 0;
+  state.usedQuestions = [];
+  
+  generateMaze();
+  initCanvas();
+  updateLives();
+  document.getElementById('roomCount').textContent = '0';
+  gameLoop();
+}
+
+function pauseGame() { state.gameStarted = false; }
+function resumeGame() { state.gameStarted = true; gameLoop(); }
+
+function showVictory() {
+  state.gameStarted = false;
+  clearInterval(state.timer);
+  document.getElementById('gameScreen').classList.add('hidden');
+  document.getElementById('endScreen').classList.remove('hidden');
+  const now = new Date();
+  document.getElementById('endDate').textContent = `颁发日期: ${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+  for(let i=0; i<30; i++) setTimeout(()=>createParticle(), i*100);
+}
+
+function showFail() {
+  state.gameStarted = false;
+  clearInterval(state.timer);
+  document.getElementById('gameScreen').classList.add('hidden');
+  document.getElementById('failScreen').classList.remove('hidden');
+}
+
+function restartGame() {
+  document.getElementById('endScreen').classList.add('hidden');
+  document.getElementById('failScreen').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+}
+
+function createParticle() {
+  const p = document.createElement('div');
+  p.className = 'heart-particle';
+  p.innerHTML = '<i class="fas fa-heart text-coral"></i>';
+  p.style.left = Math.random() * window.innerWidth + 'px';
+  p.style.top = window.innerHeight * 0.6 + 'px';
+  p.style.fontSize = (Math.random() * 15 + 10) + 'px';
+  document.getElementById('particles').appendChild(p);
+  setTimeout(() => p.remove(), 2000);
+}
+
+// ============ 键盘事件 ============
+document.addEventListener('keydown', (e) => {
+  state.keys[e.code] = true;
+  
+  // 在问答环节中的操作
+  if(state.currentChallenge && !state.currentChallenge.completed && !state.quizState.revealed) {
+    // P1: 1234
+    const p1Keys = {'Digit1':0, 'Digit2':1, 'Digit3':2, 'Digit4':3};
+    if (p1Keys[e.code] !== undefined) handleSelect('p1', p1Keys[e.code]);
+    
+    // P2: 7890
+    const p2Keys = {'Digit7':0, 'Digit8':1, 'Digit9':2, 'Digit0':3};
+    if (p2Keys[e.code] !== undefined) handleSelect('p2', p2Keys[e.code]);
+  }
+  
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+});
+
+document.addEventListener('keyup', (e) => {
+  state.keys[e.code] = false;
+});
+</script>
+</body>
+</html>
