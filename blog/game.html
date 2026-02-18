@@ -1,1 +1,1156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>💕 大广 & 灿灿宝贝的甜蜜之旅 💕</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ff9a9e 100%);
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+    
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #gameCanvas {
+      max-width: 100%;
+      max-height: 80vh;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(255, 107, 107, 0.4);
+    }
+    
+    /* 虚拟摇杆 */
+    #joystickArea {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      border: 3px solid rgba(255, 105, 180, 0.6);
+      display: none;
+      z-index: 50;
+    }
+    
+    #joystickKnob {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #FF69B4, #FF1493);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 4px 15px rgba(255, 20, 147, 0.5);
+    }
+    
+    /* 互动按钮 */
+    #interactBtn {
+      position: fixed;
+      bottom: 50px;
+      right: 30px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #FF69B4, #FF1493);
+      border: none;
+      font-size: 32px;
+      box-shadow: 0 6px 20px rgba(255, 20, 147, 0.5);
+      cursor: pointer;
+      display: none;
+      z-index: 50;
+    }
+    
+    #interactBtn:active {
+      transform: scale(0.9);
+    }
+    
+    /* 音乐按钮 */
+    #musicBtn {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 100;
+    }
+    
+    /* 底部提示 */
+    #footerText {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #9d174d;
+      font-weight: bold;
+      font-size: 14px;
+      text-align: center;
+      z-index: 10;
+      display: none;
+    }
+    
+    /* 互动提示 */
+    #hintText {
+      position: fixed;
+      bottom: 150px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 14px;
+      color: #be185d;
+      white-space: nowrap;
+      z-index: 50;
+      display: none;
+    }
+    
+    /* 弹窗遮罩 */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    
+    .popup-box {
+      background: linear-gradient(135deg, #fff 0%, #fce7f3 100%);
+      padding: 30px 35px;
+      border-radius: 25px;
+      box-shadow: 0 25px 50px rgba(190, 24, 93, 0.4);
+      max-width: 85%;
+      text-align: center;
+      animation: popIn 0.3s ease-out;
+    }
+    
+    .popup-box .emoji {
+      font-size: 50px;
+      animation: bounce 1s ease-in-out infinite;
+    }
+    
+    .popup-box .text {
+      color: #be185d;
+      font-size: 17px;
+      margin-top: 15px;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+    
+    .popup-box .hint {
+      color: #f472b6;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+    
+    @keyframes popIn {
+      0% { transform: scale(0.7); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+  
+  <button id="musicBtn">🎵</button>
+  
+  <div id="joystickArea">
+    <div id="joystickKnob"></div>
+  </div>
+  
+  <button id="interactBtn">💕</button>
+  
+  <div id="hintText">靠近灿灿宝贝，点击互动！</div>
+  
+  <div id="footerText">💕 大广 & 灿灿宝贝 - 2022.03.26 至今 💕</div>
+  
+  <!-- 开始弹窗 -->
+  <div class="overlay" id="startOverlay">
+    <div class="popup-box">
+      <div class="emoji">💕</div>
+      <div class="text">大广 & 灿灿宝贝
+甜蜜之旅</div>
+      <div class="hint">点击屏幕开始游戏</div>
+    </div>
+  </div>
+  
+  <!-- 回忆弹窗 -->
+  <div class="overlay hidden" id="memoryOverlay">
+    <div class="popup-box">
+      <div class="emoji" id="memoryEmoji">💕</div>
+      <div class="text" id="memoryText"></div>
+      <div class="hint">点击继续</div>
+    </div>
+  </div>
+  
+  <!-- 互动弹窗 -->
+  <div class="overlay hidden" id="interactOverlay">
+    <div class="popup-box">
+      <div class="emoji" id="interactEmoji">💑</div>
+      <div class="text" id="interactText"></div>
+      <div class="hint">点击继续</div>
+    </div>
+  </div>
+  
+  <!-- 结局弹窗 -->
+  <div class="overlay hidden" id="endOverlay">
+    <div class="popup-box">
+      <div class="emoji">💖</div>
+      <div class="text" id="endText"></div>
+      <div class="hint">点击重新开始</div>
+    </div>
+  </div>
 
+  <script>
+    // ========== 初始化 ==========
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 设置画布大小
+    canvas.width = 800;
+    canvas.height = 550;
+    
+    // DOM元素
+    const startOverlay = document.getElementById('startOverlay');
+    const memoryOverlay = document.getElementById('memoryOverlay');
+    const memoryText = document.getElementById('memoryText');
+    const memoryEmoji = document.getElementById('memoryEmoji');
+    const interactOverlay = document.getElementById('interactOverlay');
+    const interactText = document.getElementById('interactText');
+    const interactEmoji = document.getElementById('interactEmoji');
+    const endOverlay = document.getElementById('endOverlay');
+    const endText = document.getElementById('endText');
+    const musicBtn = document.getElementById('musicBtn');
+    const interactBtn = document.getElementById('interactBtn');
+    const joystickArea = document.getElementById('joystickArea');
+    const joystickKnob = document.getElementById('joystickKnob');
+    const hintText = document.getElementById('hintText');
+    const footerText = document.getElementById('footerText');
+    
+    // ========== 游戏配置 ==========
+    const CONFIG = {
+      playerSpeed: 4,
+      heartCount: 18,
+      interactionDist: 70,
+      followSpeed: 2.5,
+    };
+    
+    // ========== 甜蜜回忆 ==========
+    const memories = [
+      { id: 1, text: "2022年3月26日\n我们正式成为情侣 💕", x: 3, y: 3, icon: "💑" },
+      { id: 2, text: "第一次牵手\n心跳加速的感觉，至今难忘", x: 20, y: 3, icon: "🤝" },
+      { id: 3, text: "2023年6月15日\n一起看《温柔壳》", x: 11, y: 5, icon: "🎬" },
+      { id: 4, text: "2022年10月5日\n第一次一起过生日 🎂", x: 6, y: 11, icon: "🎂" },
+      { id: 5, text: "灿灿宝贝的笑容\n是我心中最美的风景 ✨", x: 16, y: 9, icon: "😊" },
+      { id: 6, text: "每一次争吵后的和好\n让我们更懂得珍惜彼此", x: 22, y: 12, icon: "🥰" },
+    ];
+    
+    // ========== 互动动作 ==========
+    const interactions = [
+      { emoji: '🤗', text: '大广紧紧抱住了灿灿宝贝\n温暖又幸福' },
+      { emoji: '😘', text: '大广在灿灿宝贝脸上\n轻轻亲了一下' },
+      { emoji: '🙌', text: '两人开心地击掌\n默契十足！' },
+      { emoji: '💃', text: '两人翩翩起舞\n这是属于你们的浪漫时刻' },
+      { emoji: '👫', text: '十指紧扣\n感受彼此的温度' },
+      { emoji: '🥰', text: '大广轻轻摸了摸\n灿灿宝贝的头' },
+    ];
+    
+    // ========== 游戏状态 ==========
+    let gameState = 'start';
+    let player1 = { x: 150, y: 250, dir: 'right', walking: false, frame: 0 };
+    let player2 = { x: 600, y: 250, dir: 'left', walking: false, frame: 0, tx: 600, ty: 250 };
+    let collectedMemories = [];
+    let hearts = [];
+    let particles = [];
+    let score = 0;
+    let loveLevel = 0;
+    let frame = 0;
+    let cooldown = 0;
+    
+    // 摇杆状态
+    let joystickOn = false;
+    let jx = 0, jy = 0;
+    
+    // ========== 音乐系统 ==========
+    let audioCtx = null;
+    let musicOn = false;
+    let musicTimer = null;
+    
+    const notes = { C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392, A4:440, B4:493.88, C5:523.25, D5:587.33, E5:659.25, G5:783.99 };
+    const melody = ['E4','G4','C5','B4','A4','G4','F4','E4','D4','E4','G4','A4','B4','C5'];
+    let melodyIdx = 0;
+    
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    function playNote(freq, dur) {
+      if (!audioCtx || !musicOn) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + dur);
+    }
+    
+    function playMelody() {
+      if (!musicOn) return;
+      playNote(notes[melody[melodyIdx]], 0.3);
+      melodyIdx = (melodyIdx + 1) % melody.length;
+    }
+    
+    function startMusic() {
+      initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      musicOn = true;
+      musicBtn.textContent = '🔊';
+      playMelody();
+      musicTimer = setInterval(playMelody, 350);
+    }
+    
+    function stopMusic() {
+      musicOn = false;
+      musicBtn.textContent = '🔇';
+      if (musicTimer) clearInterval(musicTimer);
+    }
+    
+    function playCollect() {
+      if (!audioCtx) return;
+      playNote(notes['E5'], 0.08);
+      setTimeout(() => playNote(notes['G5'], 0.12), 40);
+    }
+    
+    function playInteract() {
+      if (!audioCtx) return;
+      playNote(notes['C4'], 0.1);
+      setTimeout(() => playNote(notes['E4'], 0.1), 70);
+      setTimeout(() => playNote(notes['G4'], 0.1), 140);
+      setTimeout(() => playNote(notes['C5'], 0.2), 210);
+    }
+    
+    function playMemory() {
+      if (!audioCtx) return;
+      playNote(notes['G4'], 0.12);
+      setTimeout(() => playNote(notes['A4'], 0.12), 100);
+      setTimeout(() => playNote(notes['B4'], 0.12), 200);
+      setTimeout(() => playNote(notes['C5'], 0.25), 300);
+    }
+    
+    // ========== 初始化爱心 ==========
+    function initHearts() {
+      hearts = [];
+      for (let i = 0; i < CONFIG.heartCount; i++) {
+        hearts.push({
+          x: 80 + Math.random() * 640,
+          y: 80 + Math.random() * 350,
+          collected: false,
+          scale: 0.7 + Math.random() * 0.5,
+          phase: Math.random() * Math.PI * 2,
+          special: Math.random() > 0.75,
+        });
+      }
+    }
+    initHearts();
+    
+    // ========== 计算天数 ==========
+    function getDays() {
+      const start = new Date('2022-03-26');
+      const now = new Date();
+      return Math.ceil(Math.abs(now - start) / 86400000);
+    }
+    
+    // ========== 绘制角色 ==========
+    function drawChar(p, isGirl) {
+      const x = p.x, y = p.y;
+      const bounce = p.walking ? Math.sin(p.frame * 0.3) * 3 : 0;
+      const blink = Math.floor(frame / 120) % 8 === 0;
+      
+      ctx.save();
+      if (p.dir === 'left') {
+        ctx.translate(x + 20, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-x - 20, 0);
+      }
+      
+      if (isGirl) {
+        // 灿灿宝贝
+        const gx = x, gy = y + bounce;
+        
+        // 阴影
+        ctx.fillStyle = 'rgba(255,182,193,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(gx + 20, gy + 52, 18, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 裙子
+        ctx.fillStyle = '#FF69B4';
+        ctx.beginPath();
+        ctx.moveTo(gx + 5, gy + 28);
+        ctx.quadraticCurveTo(gx - 3, gy + 52, gx + 20, gy + 52);
+        ctx.quadraticCurveTo(gx + 43, gy + 52, gx + 35, gy + 28);
+        ctx.fill();
+        
+        ctx.fillStyle = '#FF1493';
+        ctx.beginPath();
+        ctx.arc(gx + 20, gy + 42, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 身体
+        ctx.fillStyle = '#FFB6C1';
+        ctx.beginPath();
+        ctx.roundRect(gx + 8, gy + 14, 24, 18, 4);
+        ctx.fill();
+        
+        // 手臂
+        const arm = p.walking ? Math.sin(p.frame * 0.3) * 8 : 0;
+        ctx.fillStyle = '#FFE4C4';
+        ctx.beginPath();
+        ctx.ellipse(gx + 5, gy + 22 + arm * 0.3, 4, 8, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(gx + 35, gy + 22 - arm * 0.3, 4, 8, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 头发
+        ctx.fillStyle = '#8B4513';
+        ctx.beginPath();
+        ctx.ellipse(gx + 20, gy + 4, 20, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(gx, gy + 4);
+        ctx.quadraticCurveTo(gx - 6, gy + 32, gx + 8, gy + 42);
+        ctx.lineTo(gx + 10, gy + 18);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(gx + 40, gy + 4);
+        ctx.quadraticCurveTo(gx + 46, gy + 32, gx + 32, gy + 42);
+        ctx.lineTo(gx + 30, gy + 18);
+        ctx.fill();
+        
+        // 脸
+        ctx.fillStyle = '#FFE4C4';
+        ctx.beginPath();
+        ctx.ellipse(gx + 20, gy + 7, 14, 13, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 刘海
+        ctx.fillStyle = '#8B4513';
+        ctx.beginPath();
+        ctx.ellipse(gx + 20, gy - 2, 15, 7, 0, Math.PI, Math.PI * 2);
+        ctx.fill();
+        
+        // 眼睛
+        ctx.fillStyle = '#000';
+        if (!blink) {
+          ctx.beginPath();
+          ctx.ellipse(gx + 14, gy + 5, 2.5, 3.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(gx + 26, gy + 5, 2.5, 3.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#FFF';
+          ctx.beginPath();
+          ctx.arc(gx + 15, gy + 4, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(gx + 27, gy + 4, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(gx + 11, gy + 5);
+          ctx.lineTo(gx + 17, gy + 5);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(gx + 23, gy + 5);
+          ctx.lineTo(gx + 29, gy + 5);
+          ctx.stroke();
+        }
+        
+        // 腮红
+        ctx.fillStyle = 'rgba(255,182,193,0.6)';
+        ctx.beginPath();
+        ctx.ellipse(gx + 8, gy + 10, 3.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(gx + 32, gy + 10, 3.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 微笑
+        ctx.strokeStyle = '#FF6B6B';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(gx + 20, gy + 8, 4, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+        
+        // 发饰
+        ctx.fillStyle = '#FF1493';
+        ctx.beginPath();
+        ctx.arc(gx + 5, gy - 4, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(gx + 5, gy - 4, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+      } else {
+        // 大广
+        const bx = x, by = y + bounce;
+        
+        // 阴影
+        ctx.fillStyle = 'rgba(100,149,237,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(bx + 20, by + 52, 18, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 腿
+        const leg = p.walking ? Math.sin(p.frame * 0.3) * 4 : 0;
+        ctx.fillStyle = '#4A5568';
+        ctx.beginPath();
+        ctx.roundRect(bx + 8 - leg, by + 40, 9, 14, 3);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.roundRect(bx + 23 + leg, by + 40, 9, 14, 3);
+        ctx.fill();
+        
+        // 身体
+        ctx.fillStyle = '#6366F1';
+        ctx.beginPath();
+        ctx.roundRect(bx + 5, by + 18, 30, 24, 6);
+        ctx.fill();
+        ctx.fillStyle = '#818CF8';
+        ctx.beginPath();
+        ctx.roundRect(bx + 14, by + 22, 12, 16, 3);
+        ctx.fill();
+        
+        // 手臂
+        const arm = p.walking ? Math.sin(p.frame * 0.3) * 6 : 0;
+        ctx.fillStyle = '#6366F1';
+        ctx.beginPath();
+        ctx.roundRect(bx - 2, by + 20 + arm * 0.3, 8, 16, 3);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.roundRect(bx + 34, by + 20 - arm * 0.3, 8, 16, 3);
+        ctx.fill();
+        ctx.fillStyle = '#FFE4C4';
+        ctx.beginPath();
+        ctx.arc(bx + 2, by + 38 + arm * 0.3, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(bx + 38, by + 38 - arm * 0.3, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 头发
+        ctx.fillStyle = '#4A4A4A';
+        ctx.beginPath();
+        ctx.ellipse(bx + 20, by + 1, 17, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#6B6B6B';
+        ctx.beginPath();
+        ctx.ellipse(bx + 14, by - 3, 5, 3, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 脸
+        ctx.fillStyle = '#FFE4C4';
+        ctx.beginPath();
+        ctx.ellipse(bx + 20, by + 7, 15, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 眼睛
+        ctx.fillStyle = '#000';
+        if (!blink) {
+          ctx.beginPath();
+          ctx.ellipse(bx + 14, by + 5, 2.5, 3.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(bx + 26, by + 5, 2.5, 3.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#FFF';
+          ctx.beginPath();
+          ctx.arc(bx + 15, by + 4, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(bx + 27, by + 4, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(bx + 11, by + 5);
+          ctx.lineTo(bx + 17, by + 5);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(bx + 23, by + 5);
+          ctx.lineTo(bx + 29, by + 5);
+          ctx.stroke();
+        }
+        
+        // 腮红
+        ctx.fillStyle = 'rgba(255,182,193,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(bx + 6, by + 11, 3.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(bx + 34, by + 11, 3.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 笑容
+        ctx.strokeStyle = '#FF6B6B';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(bx + 20, by + 9, 5, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+      }
+      
+      ctx.restore();
+    }
+    
+    // ========== 绘制爱心 ==========
+    function drawHeart(x, y, size, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(size / 18, size / 18);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, -5);
+      ctx.bezierCurveTo(-10, -15, -20, -5, 0, 15);
+      ctx.bezierCurveTo(20, -5, 10, -15, 0, -5);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.beginPath();
+      ctx.ellipse(-4, -4, 2.5, 3.5, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    
+    // ========== 绘制星星 ==========
+    function drawStar(x, y, size, color, rot) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+        const px = Math.cos(a) * size;
+        const py = Math.sin(a) * size;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    
+    // ========== 绘制花朵 ==========
+    function drawFlower(x, y, f, s) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(s, s);
+      const colors = ['#FF69B4', '#FFB6C1', '#FDA4AF'];
+      const c = colors[Math.floor(f / 12) % 3];
+      for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.rotate((i * Math.PI * 2) / 5 + f * 0.008);
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.ellipse(0, -8, 4, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = '#FCD34D';
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    
+    // ========== 粒子 ==========
+    function addParticles(x, y, n, c) {
+      for (let i = 0; i < n; i++) {
+        particles.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 5,
+          vy: (Math.random() - 0.5) * 5 - 2,
+          size: 2 + Math.random() * 4,
+          color: c,
+          life: 1
+        });
+      }
+    }
+    
+    function updateParticles() {
+      particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.08;
+        p.life -= 0.015;
+        if (p.life <= 0) return false;
+        ctx.save();
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return true;
+      });
+    }
+    
+    // ========== 绘制场景 ==========
+    function drawScene() {
+      // 天空
+      const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      sky.addColorStop(0, '#87CEEB');
+      sky.addColorStop(0.35, '#E0F2FE');
+      sky.addColorStop(0.65, '#FFF1F2');
+      sky.addColorStop(1, '#DCFCE7');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // 太阳
+      ctx.fillStyle = '#FEF3C7';
+      ctx.beginPath();
+      ctx.arc(720, 60, 45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FCD34D';
+      ctx.beginPath();
+      ctx.arc(720, 60, 32, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 云
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      for (let i = 0; i < 4; i++) {
+        const cx = ((i * 220 + frame * 0.12) % (canvas.width + 100)) - 50;
+        const cy = 40 + i * 15;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+        ctx.arc(cx + 22, cy - 4, 22, 0, Math.PI * 2);
+        ctx.arc(cx + 44, cy, 18, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // 远山
+      ctx.fillStyle = '#D1FAE5';
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height - 90);
+      ctx.quadraticCurveTo(200, canvas.height - 170, 400, canvas.height - 90);
+      ctx.quadraticCurveTo(600, canvas.height - 140, canvas.width, canvas.height - 90);
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.fill();
+      
+      // 草地
+      ctx.fillStyle = '#86EFAC';
+      ctx.beginPath();
+      ctx.ellipse(canvas.width / 2, canvas.height + 50, canvas.width * 0.7, 110, 0, Math.PI, 0);
+      ctx.fill();
+      
+      // 草
+      ctx.fillStyle = '#4ADE80';
+      for (let i = 0; i < canvas.width; i += 12) {
+        const h = 6 + Math.sin(i * 0.08 + frame * 0.03) * 2;
+        ctx.beginPath();
+        ctx.moveTo(i, canvas.height - 70);
+        ctx.quadraticCurveTo(i + 2, canvas.height - 70 - h, i + 4, canvas.height - 70);
+        ctx.fill();
+      }
+      
+      // 花
+      for (let i = 0; i < 12; i++) {
+        drawFlower(35 + i * 68, canvas.height - 55, frame + i * 15, 0.55);
+      }
+      
+      // 回忆点
+      memories.forEach(m => {
+        if (!collectedMemories.includes(m.id)) {
+          const mx = m.x * 32, my = m.y * 32;
+          const gs = 18 + Math.sin(frame * 0.08) * 4;
+          ctx.fillStyle = 'rgba(255,215,0,0.25)';
+          ctx.beginPath();
+          ctx.arc(mx + 16, my + 16, gs, 0, Math.PI * 2);
+          ctx.fill();
+          drawStar(mx + 16, my + 16, 12 + Math.sin(frame * 0.08) * 2, '#FFD700', frame * 0.015);
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.beginPath();
+          ctx.roundRect(mx - 2, my + 32, 36, 16, 5);
+          ctx.fill();
+          ctx.fillStyle = '#BE185D';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('回忆', mx + 16, my + 44);
+        }
+      });
+      
+      // 爱心
+      hearts.forEach(h => {
+        if (!h.collected) {
+          const by = Math.sin(frame * 0.06 + h.phase) * 4;
+          const rot = Math.sin(frame * 0.02 + h.phase) * 0.15;
+          ctx.save();
+          ctx.translate(h.x, h.y + by);
+          ctx.rotate(rot);
+          const c = h.special ? '#FF1493' : '#FF69B4';
+          const s = h.special ? 18 : 14;
+          drawHeart(0, 0, s * h.scale, c);
+          if (h.special) {
+            ctx.fillStyle = 'rgba(255,20,147,0.25)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      });
+      
+      // 角色
+      drawChar(player1, false);
+      drawChar(player2, true);
+      
+      // 名字
+      ctx.fillStyle = 'rgba(99,102,241,0.9)';
+      ctx.beginPath();
+      ctx.roundRect(player1.x - 5, player1.y - 22, 50, 18, 6);
+      ctx.fill();
+      ctx.fillStyle = '#FFF';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('大广', player1.x + 20, player1.y - 8);
+      
+      ctx.fillStyle = 'rgba(236,72,153,0.9)';
+      ctx.beginPath();
+      ctx.roundRect(player2.x - 5, player2.y - 22, 70, 18, 6);
+      ctx.fill();
+      ctx.fillStyle = '#FFF';
+      ctx.fillText('灿灿宝贝', player2.x + 30, player2.y - 8);
+      
+      // 粒子
+      updateParticles();
+      
+      // UI
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.beginPath();
+      ctx.roundRect(12, 12, 100, 32, 8);
+      ctx.fill();
+      ctx.fillStyle = '#BE185D';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`❤️ ${score}`, 22, 34);
+      
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.beginPath();
+      ctx.roundRect(120, 12, 110, 32, 8);
+      ctx.fill();
+      ctx.fillStyle = '#EC4899';
+      ctx.fillText(`🌟 ${collectedMemories.length}/${memories.length}`, 130, 34);
+      
+      // 爱心条
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.beginPath();
+      ctx.roundRect(240, 12, 120, 32, 8);
+      ctx.fill();
+      ctx.fillStyle = '#FCE7F3';
+      ctx.beginPath();
+      ctx.roundRect(250, 20, 80, 12, 4);
+      ctx.fill();
+      const lw = (loveLevel / 100) * 80;
+      const lg = ctx.createLinearGradient(250, 0, 330, 0);
+      lg.addColorStop(0, '#FF69B4');
+      lg.addColorStop(1, '#FF1493');
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.roundRect(250, 20, lw, 12, 4);
+      ctx.fill();
+      ctx.fillStyle = '#BE185D';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('💕', 352, 30);
+      
+      // 天数
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.beginPath();
+      ctx.roundRect(canvas.width - 140, 12, 128, 32, 8);
+      ctx.fill();
+      ctx.fillStyle = '#BE185D';
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(`💕 在一起 ${getDays()} 天`, canvas.width - 20, 32);
+    }
+    
+    // ========== 更新游戏 ==========
+    function update() {
+      if (gameState !== 'playing') return;
+      
+      if (cooldown > 0) cooldown--;
+      
+      // 大广移动
+      let moving = false;
+      if (joystickOn && (Math.abs(jx) > 0.1 || Math.abs(jy) > 0.1)) {
+        player1.x += jx * CONFIG.playerSpeed;
+        player1.y += jy * CONFIG.playerSpeed;
+        player1.dir = Math.abs(jx) > Math.abs(jy) ? (jx > 0 ? 'right' : 'left') : (jy > 0 ? 'down' : 'up');
+        moving = true;
+      }
+      player1.walking = moving;
+      if (moving) player1.frame++;
+      
+      player1.x = Math.max(10, Math.min(canvas.width - 50, player1.x));
+      player1.y = Math.max(50, Math.min(canvas.height - 90, player1.y));
+      
+      // 灿灿跟随
+      const dx = player1.x - player2.x;
+      const dy = player1.y - player2.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist > 80) {
+        player2.tx = player1.x - 60;
+        player2.ty = player1.y;
+      }
+      
+      const fdx = player2.tx - player2.x;
+      const fdy = player2.ty - player2.y;
+      const fdist = Math.sqrt(fdx * fdx + fdy * fdy);
+      
+      if (fdist > 5) {
+        player2.x += (fdx / fdist) * CONFIG.followSpeed;
+        player2.y += (fdy / fdist) * CONFIG.followSpeed;
+        player2.dir = fdx > 0 ? 'right' : 'left';
+        player2.walking = true;
+        player2.frame++;
+      } else {
+        player2.walking = false;
+      }
+      
+      player2.x = Math.max(10, Math.min(canvas.width - 50, player2.x));
+      player2.y = Math.max(50, Math.min(canvas.height - 90, player2.y));
+      
+      // 互动提示
+      hintText.style.display = (dist < CONFIG.interactionDist && cooldown <= 0) ? 'block' : 'none';
+      
+      // 爱心碰撞
+      hearts.forEach(h => {
+        if (!h.collected) {
+          const d = Math.sqrt(Math.pow(player1.x + 20 - h.x, 2) + Math.pow(player1.y + 25 - h.y, 2));
+          if (d < 28) {
+            score += h.special ? 30 : 10;
+            loveLevel = Math.min(100, loveLevel + (h.special ? 8 : 3));
+            addParticles(h.x, h.y, 10, h.special ? '#FF1493' : '#FF69B4');
+            playCollect();
+            h.collected = true;
+          }
+        }
+      });
+      
+      // 回忆碰撞
+      memories.forEach(m => {
+        const mx = m.x * 32 + 16, my = m.y * 32 + 16;
+        const d = Math.sqrt(Math.pow(player1.x + 20 - mx, 2) + Math.pow(player1.y + 25 - my, 2));
+        if (d < 35 && !collectedMemories.includes(m.id)) {
+          collectedMemories.push(m.id);
+          memoryText.textContent = m.text;
+          memoryEmoji.textContent = m.icon;
+          gameState = 'memory';
+          memoryOverlay.classList.remove('hidden');
+          addParticles(mx, my, 15, '#FFD700');
+          playMemory();
+        }
+      });
+      
+      // 胜利
+      if (collectedMemories.length >= memories.length && loveLevel >= 80) {
+        gameState = 'end';
+        endText.textContent = `🎉 恭喜你们收集了所有甜蜜回忆！\n\n春风十里，不及与你相遇\n晴空万里，不及心中有你\n开头是你，结尾是你\n朝也是你，暮也是你\n\n往后余生，皆是你 💖`;
+        endOverlay.classList.remove('hidden');
+        for (let i = 0; i < 5; i++) {
+          setTimeout(() => {
+            addParticles(canvas.width / 2, canvas.height / 2, 20, '#FF69B4');
+            addParticles(canvas.width / 2, canvas.height / 2, 15, '#FFD700');
+          }, i * 150);
+        }
+      }
+    }
+    
+    // ========== 主循环 ==========
+    function gameLoop() {
+      update();
+      
+      if (gameState === 'start') {
+        const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        g.addColorStop(0, '#FFF5F5');
+        g.addColorStop(0.5, '#FECDD3');
+        g.addColorStop(1, '#FECACA');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        for (let i = 0; i < 30; i++) {
+          const x = (i * 29 + frame * 0.2) % (canvas.width + 40) - 20;
+          const y = (i * 23 + Math.sin(frame * 0.015 + i) * 25) % canvas.height;
+          const s = 10 + Math.sin(frame * 0.03 + i) * 3;
+          const a = 0.15 + Math.sin(frame * 0.02 + i) * 0.1;
+          drawHeart(x, y, s, `rgba(255,105,180,${a})`);
+        }
+      } else {
+        drawScene();
+      }
+      
+      frame++;
+      requestAnimationFrame(gameLoop);
+    }
+    
+    // ========== 摇杆控制 ==========
+    let jcx = 0, jcy = 0;
+    
+    function updateJoyCenter() {
+      const rect = joystickArea.getBoundingClientRect();
+      jcx = rect.left + rect.width / 2;
+      jcy = rect.top + rect.height / 2;
+    }
+    
+    function joyStart(e) {
+      e.preventDefault();
+      updateJoyCenter();
+      joystickOn = true;
+      joyMove(e);
+    }
+    
+    function joyMove(e) {
+      if (!joystickOn) return;
+      e.preventDefault();
+      const t = e.touches ? e.touches[0] : e;
+      let dx = t.clientX - jcx;
+      let dy = t.clientY - jcy;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const max = 40;
+      if (d > max) { dx = (dx / d) * max; dy = (dy / d) * max; }
+      jx = dx / max;
+      jy = dy / max;
+      joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    }
+    
+    function joyEnd(e) {
+      e.preventDefault();
+      joystickOn = false;
+      jx = 0; jy = 0;
+      joystickKnob.style.transform = 'translate(-50%, -50%)';
+    }
+    
+    joystickArea.addEventListener('touchstart', joyStart, { passive: false });
+    joystickArea.addEventListener('touchmove', joyMove, { passive: false });
+    joystickArea.addEventListener('touchend', joyEnd, { passive: false });
+    joystickArea.addEventListener('touchcancel', joyEnd, { passive: false });
+    joystickArea.addEventListener('mousedown', joyStart);
+    document.addEventListener('mousemove', joyMove);
+    document.addEventListener('mouseup', joyEnd);
+    
+    // ========== 互动按钮 ==========
+    interactBtn.addEventListener('click', () => {
+      if (gameState !== 'playing' || cooldown > 0) return;
+      const d = Math.sqrt(Math.pow(player1.x - player2.x, 2) + Math.pow(player1.y - player2.y, 2));
+      if (d < CONFIG.interactionDist) {
+        const it = interactions[Math.floor(Math.random() * interactions.length)];
+        interactText.textContent = it.text;
+        interactEmoji.textContent = it.emoji;
+        gameState = 'interact';
+        interactOverlay.classList.remove('hidden');
+        cooldown = 180;
+        loveLevel = Math.min(100, loveLevel + 10);
+        score += 20;
+        playInteract();
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => addParticles((player1.x + player2.x) / 2 + 20, (player1.y + player2.y) / 2, 12, '#FF69B4'), i * 100);
+        }
+      }
+    });
+    
+    // ========== 弹窗点击 ==========
+    startOverlay.addEventListener('click', () => {
+      startOverlay.classList.add('hidden');
+      gameState = 'playing';
+      player1 = { x: 150, y: 250, dir: 'right', walking: false, frame: 0 };
+      player2 = { x: 600, y: 250, dir: 'left', walking: false, frame: 0, tx: 600, ty: 250 };
+      collectedMemories = [];
+      score = 0;
+      loveLevel = 0;
+      initHearts();
+      joystickArea.style.display = 'block';
+      interactBtn.style.display = 'block';
+      footerText.style.display = 'block';
+      startMusic();
+    });
+    
+    memoryOverlay.addEventListener('click', () => {
+      memoryOverlay.classList.add('hidden');
+      gameState = 'playing';
+    });
+    
+    interactOverlay.addEventListener('click', () => {
+      interactOverlay.classList.add('hidden');
+      gameState = 'playing';
+    });
+    
+    endOverlay.addEventListener('click', () => {
+      endOverlay.classList.add('hidden');
+      gameState = 'playing';
+      player1 = { x: 150, y: 250, dir: 'right', walking: false, frame: 0 };
+      player2 = { x: 600, y: 250, dir: 'left', walking: false, frame: 0, tx: 600, ty: 250 };
+      collectedMemories = [];
+      score = 0;
+      loveLevel = 0;
+      initHearts();
+    });
+    
+    musicBtn.addEventListener('click', () => musicOn ? stopMusic() : startMusic());
+    
+    // ========== 启动 ==========
+    gameLoop();
+  </script>
+</body>
+</html>
